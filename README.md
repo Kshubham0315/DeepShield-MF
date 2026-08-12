@@ -188,3 +188,50 @@ The primary objective of **DeepShield-MF** is to develop a robust deepfake detec
 * Real-time deepfake detection
 * Deployment using FastAPI and Docker
 * Integration with web and mobile applications
+
+
+
+
+
+This is the complete architecture of the whole project
+
+
+                 ┌─────────────────────┐
+                 │     IMAGE / VIDEO   │
+                 └──────────┬──────────┘
+                            ↓
+                    PREPROCESSING
+                            ↓
+                  Face / Frame Extraction
+                            ↓
+        ┌───────────────────┼───────────────────┐
+        ↓                   ↓                   ↓
+   CNN Branch           ViT Branch       Frequency Branch
+   ResNet50/             ViT-B/16          FFT + DCT
+   EfficientNet
+        ↓                   ↓                   ↓
+        └───────────────────┬───────────────────┘
+                            ↓
+                    FEATURE FUSION
+                            ↓
+                ┌───────────┴───────────┐
+                ↓                       ↓
+          Feature Fusion          Decision Fusion
+                ↓                       ↓
+                └───────────┬───────────┘
+                            ↓
+                     CLASSIFIER
+                            ↓
+                     Real / Fake
+                            ↓
+                    Confidence Score
+                            ↓
+                  ┌─────────┴─────────┐
+                  ↓                   ↓
+               IMAGE                VIDEO
+                  ↓                   ↓
+              Grad-CAM            BiLSTM
+                                      ↓
+                              Temporal Prediction
+                                      ↓
+                              Video Real/Fake
