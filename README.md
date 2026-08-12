@@ -10,7 +10,7 @@ The system combines **Convolutional Neural Networks (CNNs)**, **Vision Transform
 
 Multiple **feature and decision fusion strategies** are used to improve the robustness and generalization of the detection system across different datasets and manipulation methods.
 
-## 🚀 Key Features
+##  Key Features
 
 * Multidomain deepfake detection
 * CNN-based spatial feature extraction
@@ -21,7 +21,7 @@ Multiple **feature and decision fusion strategies** are used to improve the robu
 * Support for different deepfake datasets
 * Model evaluation across multiple domains
 
-## 🧠 System Architecture
+##  System Architecture
 
 ```text
                     Input Media
@@ -45,7 +45,7 @@ Multiple **feature and decision fusion strategies** are used to improve the robu
                 Real / Deepfake
 ```
 
-## 🔬 Methodology
+##  Methodology
 
 ### 1. Spatial Feature Extraction
 
@@ -100,7 +100,7 @@ Possible fusion strategies include:
 * **FFT / DCT**
 * **Deep Learning**
 
-## 📂 Project Structure
+##  Project Structure
 
 ```text
 DeepShield-MF/
@@ -150,15 +150,14 @@ Install dependencies:
 pip install -r requirements.txt
 ```
 
-## ▶️ Training
+##  Training
 
 Train the model using:
 
 ```bash
 python src/train.py
 ```
-
-## 📊 Evaluation
+##  Evaluation
 
 Evaluate the trained model:
 
@@ -175,11 +174,11 @@ The system can be evaluated using:
 * ROC-AUC
 * Confusion Matrix
 
-## 🎯 Objective
+##  Objective
 
 The primary objective of **DeepShield-MF** is to develop a robust deepfake detection system that can generalize across **multiple domains, datasets, and manipulation techniques** by combining complementary spatial, global, and frequency-domain representations.
 
-## 🔮 Future Improvements
+##  Future Improvements
 
 * Audio-visual deepfake detection
 * Video-level temporal modeling
