@@ -5,6 +5,8 @@ import shutil
 import tempfile
 import urllib.request
 
+from dotenv import load_dotenv
+
 import cv2
 import numpy as np
 import torch
@@ -13,7 +15,7 @@ from flask import Flask, request, Response, jsonify
 from flask_cors import CORS
 
 app = Flask(__name__)
-
+load_dotenv()
 
 def get_env_int(name, default):
     value = os.getenv(name)
