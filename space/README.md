@@ -1,4 +1,14 @@
 
+---
+title: DeepShield
+emoji: "🛡"
+colorFrom: gray
+colorTo: indigo
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # DeepShield: Deepfake Video Detection (ViT Baseline + CNN/ViT/FFT/BiLSTM Hybrid)
 
 This project includes two model tracks: a deployment-ready ViT frame classifier used by the Flask backend, and a newer video-level hybrid notebook that adds CNN + ViT spatial features, FFT frequency cues, and temporal LSTM modeling.
