@@ -33,6 +33,8 @@ venv/
 *.egg-info/
 dist/
 
+.venv/
+
 # Trained model files (large binary)
 backend/models/*.pth
 backend/models/*.pt
