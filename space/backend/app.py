@@ -123,6 +123,7 @@ if ensure_model_file():
     state_dict = remove_module_prefix(state_dict)
     model.load_state_dict(state_dict)
     print(f"Model loaded from {MODEL_PATH}")
+    
 
 model.eval()
 
