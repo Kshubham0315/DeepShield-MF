@@ -14,7 +14,7 @@ HEALTH_URL = f"{BACKEND_URL}/health"
 
 st.set_page_config(
     page_title="DeepShield-MF",
-    page_icon="🛡️",
+    page_icon="",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -114,7 +114,7 @@ if "uploaded_file" not in st.session_state:
 st.markdown(
     """
     <div class="hero">
-        <h1>🛡️ DeepShield-MF</h1>
+        <h1>DeepShield-MF</h1>
         <p>
             Multidomain Deepfake Detection using CNNs, Vision Transformers
             & Frequency-Domain Analysis
@@ -130,7 +130,7 @@ st.markdown(
 
 with st.sidebar:
 
-    st.header("⚙️ System")
+    st.header("System")
 
     st.write("### Backend")
 
@@ -144,7 +144,7 @@ with st.sidebar:
 
             health = health_response.json()
 
-            st.success("🟢 Backend Online")
+            st.success("Backend Online")
 
             st.write(
                 f"**Device:** `{health.get('device', 'Unknown')}`"
@@ -198,9 +198,9 @@ with st.sidebar:
 
 tab1, tab2, tab3 = st.tabs(
     [
-        "🔍 Detection",
-        "📊 Analysis",
-        "ℹ️ About",
+        "Detection",
+        "Analysis",
+        "About",
     ]
 )
 
@@ -272,7 +272,7 @@ with tab1:
         # ----------------------------------------------------
 
         analyze = st.button(
-            "🚀 Analyze Media",
+            "Analyze Media",
             type="primary",
             use_container_width=True,
         )
@@ -294,7 +294,7 @@ with tab1:
                 status = st.empty()
 
                 status.info(
-                    "🔄 Sending file to DeepShield backend..."
+                    "Sending file to DeepShield backend..."
                 )
 
                 try:
@@ -430,7 +430,7 @@ with tab1:
                 except requests.exceptions.Timeout:
 
                     st.error(
-                        "⏱️ Request timed out. "
+                        "Request timed out. "
                         "The video may be too large or processing "
                         "may take longer."
                     )
@@ -438,7 +438,7 @@ with tab1:
                 except requests.exceptions.ConnectionError:
 
                     st.error(
-                        "❌ Could not connect to Flask backend."
+                        "Could not connect to Flask backend."
                     )
 
                     st.info(
@@ -470,7 +470,7 @@ with tab1:
         st.divider()
 
         st.subheader(
-            "🎯 Detection Result"
+            "Detection Result"
         )
 
         total_frames = prediction.get(
@@ -523,7 +523,7 @@ with tab1:
             st.markdown(
                 f"""
                 <div class="fake-box">
-                    <h1>⚠️ {final_label}</h1>
+                    <h1>{final_label}</h1>
                     <h2>{confidence:.2f}%</h2>
                     <p>Manipulated content detected</p>
                 </div>
@@ -536,7 +536,7 @@ with tab1:
             st.markdown(
                 f"""
                 <div class="real-box">
-                    <h1>✅ {final_label}</h1>
+                    <h1>{final_label}</h1>
                     <h2>{confidence:.2f}%</h2>
                     <p>No significant manipulation detected</p>
                 </div>
@@ -589,7 +589,7 @@ with tab1:
         # ----------------------------------------------------
 
         st.subheader(
-            "📊 Prediction Distribution"
+            "Prediction Distribution"
         )
 
         chart_col1, chart_col2 = st.columns(
@@ -650,7 +650,7 @@ with tab1:
         # ----------------------------------------------------
 
         st.subheader(
-            "📋 Detailed Analysis"
+            "Detailed Analysis"
         )
 
         result_table = pd.DataFrame(
@@ -690,7 +690,7 @@ with tab1:
 with tab2:
 
     st.subheader(
-        "📊 Model Analysis"
+        "Model Analysis"
     )
 
     prediction = st.session_state.prediction
@@ -758,7 +758,7 @@ with tab2:
 with tab3:
 
     st.subheader(
-        "🛡️ About DeepShield-MF"
+        "About DeepShield-MF"
     )
 
     st.markdown(
