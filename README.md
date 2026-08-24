@@ -1,179 +1,742 @@
+# DeepShield-MF
 
-# DeepShield: Deepfake Video Detection (ViT Baseline + CNN/ViT/FFT/BiLSTM Hybrid)
+## Deepfake Video Detection using CNN, Vision Transformer, FFT and BiLSTM
 
-This project includes two model tracks: a deployment-ready ViT frame classifier used by the Flask backend, and a newer video-level hybrid notebook that adds CNN + ViT spatial features, FFT frequency cues, and temporal LSTM modeling.
+DeepShield-MF is an AI-powered deepfake video detection system that analyzes videos using spatial, frequency-domain, and temporal features to classify content as **Real** or **Fake**.
 
-## Table of Contents
-- Hosted Links
-- Dataset Preparation
-- Model Architecture
-- Latest Model Updates
-- Training Process
-- Evaluation Metrics
-- Video Prediction
-- Installation and Setup
-- Results
-- Website Usage
-- Contributors
+The project contains two model approaches:
 
-## Hosted Links
-- Frontend: https://deepshieldetector.netlify.app
-- Backend (Space /health): https://rohroos84-deepshield.hf.space/health
-- Model (HF Hub): https://huggingface.co/RohRoos84/deepshield-model/resolve/main/best_vit_model.pth
+* **ViT Baseline:** Frame-level deepfake detection using Vision Transformer.
+* **Hybrid Model:** Video-level detection using ResNet50 + ViT + FFT + BiLSTM with feature fusion.
 
-## Dataset Preparation
-### Current Working Dataset Layout
-- **Frame dataset used by training:** `data/FF_frames/fake` and `data/FF_frames/real`
-- **Source video collections (optional/reference):** `data/FF++` style real/manipulated folders
+## Live Demo
 
-### Frame Extraction
-Extract frames at approximately 1 FPS. Frame filenames should preserve video identity and frame order for sequence modeling, e.g. `video123_00045.jpg`.
+**Frontend:**
+https://deepshieldetector.netlify.app
 
-## Model Architecture
-![Model Architecture Diagram](docs/arch.png)
+**Backend:**
+https://rohroos84-deepshield.hf.space/health
 
-### Model Variants
-- **Backend inference model (current production path):** ViT (`vit_base_patch16_224`), frame-level inference
-- **Latest notebook model:** ResNet50 + ViT + FFT branch + BiLSTM (video-level sequence classification)
-- **Input:** 224x224 frame tensors grouped into temporal windows (default `SEQ_LEN = 8`)
-- **Classes:** 2 (folder-sorted class order, typically `fake`, `real`)
-- **Pretrained weights:** ImageNet for spatial backbones
+**Hugging Face Model:**
+https://huggingface.co/RohRoos84/deepshield-model
 
-### Baseline ViT Initialization (backend-compatible)
-```python
-model = timm.create_model("vit_base_patch16_224", pretrained=True, num_classes=2)
-model.to(device)
-model = nn.DataParallel(model)
+---
+
+## Overview
+
+Deepfake videos can contain different types of artifacts that may not always be visible in individual frames.
+
+DeepShield-MF analyzes the video from three different perspectives:
+
+1. **Spatial Domain** - Visual features from individual frames.
+2. **Frequency Domain** - Frequency artifacts using FFT.
+3. **Temporal Domain** - Frame-to-frame relationships using BiLSTM.
+
+These features are combined to improve deepfake detection.
+
+---
+
+## Architecture
+
+The hybrid architecture follows:
+
+```text
+Input Video
+     |
+Frame Extraction
+     |
+Sequence Builder (224x224)
+     |
+     +----------------+----------------+
+     |                |                |
+     v                v                v
+   FFT             ResNet50          ViT-B/16
+ Branch          Spatial Encoder   Spatial Encoder
+     |                |                |
+     +----------------+----------------+
+                      |
+                Feature Fusion
+                      |
+                BiLSTM Temporal
+                   Modeling
+                      |
+                Temporal Pooling
+                      |
+                  Classifier
+                      |
+                +-----+-----+
+                |           |
+              Real        Fake
 ```
 
-### Latest Hybrid Initialization (notebook)
-```python
-model = TemporalHybridModel(
-    num_classes=2,
-    fft_dim=128,
-    lstm_hidden=192,
-    freeze_backbones=True,
-    temporal_pool="mean",
-).to(device)
+## Model Components
+
+### 1. ResNet50
+
+ResNet50 is used as a CNN-based spatial feature extractor.
+
+It captures local visual information such as:
+
+* Facial textures
+* Local artifacts
+* Blending inconsistencies
+* Fine-grained visual patterns
+
+### 2. Vision Transformer
+
+The project uses the Vision Transformer architecture:
+
+```text
+vit_base_patch16_224
 ```
 
-## Latest Model Updates
-- **Video-level split:** Train/validation split uses video identity to reduce leakage.
-- **Sequence sampling:** Sliding windows over ordered frames (`SEQ_LEN`, `SEQ_STRIDE`).
-- **Frequency branch:** FFT magnitude features fused with spatial features.
-- **Temporal modeling:** BiLSTM over per-frame fused embeddings with configurable pooling.
-- **Stability controls:** Class-weighted loss, label smoothing, gradient clipping, LR plateau scheduler, and early stopping.
-- **Checkpoint policy:** Final metrics are computed from the best validation checkpoint, not just last epoch.
+ViT processes the image as a sequence of patches and captures global relationships between different regions of the frame.
 
-## Training Process
-### Baseline ViT Transformations
+The model is initialized using ImageNet pretrained weights.
+
+### 3. FFT Frequency Branch
+
+The FFT branch extracts frequency-domain information from video frames.
+
+Deepfake generation techniques can introduce unusual frequency patterns that may not be easily visible in normal RGB images.
+
+The FFT features are therefore combined with spatial features to provide additional information to the classifier.
+
+### 4. BiLSTM Temporal Modeling
+
+A video contains a sequence of frames, and deepfake artifacts can appear as temporal inconsistencies.
+
+The BiLSTM processes the fused features from consecutive frames and learns temporal relationships across the sequence.
+
+---
+
+## Model Variants
+
+### Production Model
+
+The current deployed backend uses a frame-level ViT classifier.
+
 ```python
-transform = transforms.Compose([
-    transforms.Resize((224, 224)),
-    transforms.RandomHorizontalFlip(),
-    transforms.ColorJitter(brightness=0.2),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-])
+model = timm.create_model(
+    "vit_base_patch16_224",
+    pretrained=True,
+    num_classes=2
+)
 ```
 
-### Latest Hybrid Training Pipeline (notebook)
-```python
-# 1) build video records -> split by video -> create sequence samples
-video_records, class_names, class_to_idx = build_video_records(DATA_PATH, min_frames=SEQ_LEN)
-train_videos, val_videos = split_video_records(video_records, val_ratio=VAL_RATIO, seed=SEED)
-train_samples = make_sequence_samples(train_videos, seq_len=SEQ_LEN, seq_stride=SEQ_STRIDE)
-val_samples = make_sequence_samples(val_videos, seq_len=SEQ_LEN, seq_stride=SEQ_STRIDE)
+Configuration:
 
-# 2) model + optimizer + scheduler
-model = TemporalHybridModel(...).to(device)
-optimizer = torch.optim.AdamW([p for p in model.parameters() if p.requires_grad], lr=LR, weight_decay=WEIGHT_DECAY)
-scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="max", factor=0.5, patience=1)
+* Model: ViT-B/16
+* Input Size: 224 × 224
+* Number of Classes: 2
+* Pretrained Weights: ImageNet
+* Prediction Type: Frame-level
 
-# 3) train and save best checkpoint
-for epoch in range(EPOCHS):
-    train_loss, train_acc = train_one_epoch(...)
-    val_loss, val_acc, _, _, _ = evaluate(...)
-    scheduler.step(val_acc)
-    if val_acc improved:
-        save best checkpoint
+### Hybrid Research Model
+
+The latest experimental model uses:
+
+```text
+ResNet50 + ViT-B/16 + FFT + BiLSTM
 ```
+
+Configuration:
+
+```text
+Sequence Length = 8
+Sequence Stride = 2
+Image Size = 224 × 224
+Classes = 2
+```
+
+---
+
+## Dataset
+
+The model uses a frame-based dataset containing real and fake video frames.
+
+Recommended structure:
+
+```text
+data/
+└── FF_frames/
+    ├── fake/
+    │   ├── video001_00001.jpg
+    │   ├── video001_00002.jpg
+    │   └── ...
+    │
+    └── real/
+        ├── video101_00001.jpg
+        ├── video101_00002.jpg
+        └── ...
+```
+
+Frames are extracted from videos at approximately 1 FPS.
+
+Frame names preserve video identity and frame order.
+
+Example:
+
+```text
+video123_00001.jpg
+video123_00002.jpg
+video123_00003.jpg
+```
+
+This ordering is important for temporal sequence modeling.
+
+---
+
+## Data Splitting
+
+The hybrid model performs the train/validation split at the **video level** instead of the individual frame level.
+
+This helps prevent data leakage.
+
+The pipeline is:
+
+```text
+Original Videos
+      |
+      v
+Train / Validation Split
+      |
+      v
+Sequence Generation
+      |
+      v
+Model Training
+```
+
+This prevents frames from the same source video from appearing in both training and validation sets.
+
+---
+
+## Sequence Generation
+
+The hybrid model creates temporal windows from ordered frames.
+
+Default configuration:
+
+```python
+SEQ_LEN = 8
+SEQ_STRIDE = 2
+```
+
+For example:
+
+```text
+Frame 1
+Frame 2
+Frame 3
+Frame 4
+Frame 5
+Frame 6
+Frame 7
+Frame 8
+       |
+       v
+Sequence 1
+```
+
+With a stride of 2, the next sequence begins after two frames.
+
+---
+
+## Training Pipeline
+
+The training pipeline consists of the following stages:
+
+```text
+Video Records
+      |
+Video-Level Split
+      |
+Sequence Generation
+      |
+Frame Preprocessing
+      |
+CNN + ViT + FFT Feature Extraction
+      |
+Feature Fusion
+      |
+BiLSTM Temporal Modeling
+      |
+Temporal Pooling
+      |
+Classification
+      |
+Best Validation Checkpoint
+```
+
+Example:
+
+```python
+video_records, class_names, class_to_idx = build_video_records(
+    DATA_PATH,
+    min_frames=SEQ_LEN
+)
+
+train_videos, val_videos = split_video_records(
+    video_records,
+    val_ratio=VAL_RATIO,
+    seed=SEED
+)
+
+train_samples = make_sequence_samples(
+    train_videos,
+    seq_len=SEQ_LEN,
+    seq_stride=SEQ_STRIDE
+)
+
+val_samples = make_sequence_samples(
+    val_videos,
+    seq_len=SEQ_LEN,
+    seq_stride=SEQ_STRIDE
+)
+```
+
+---
+
+## Optimizer
+
+The hybrid model uses AdamW:
+
+```python
+optimizer = torch.optim.AdamW(
+    [p for p in model.parameters() if p.requires_grad],
+    lr=LR,
+    weight_decay=WEIGHT_DECAY
+)
+```
+
+## Learning Rate Scheduler
+
+The project uses `ReduceLROnPlateau`:
+
+```python
+scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+    optimizer,
+    mode="max",
+    factor=0.5,
+    patience=1
+)
+```
+
+---
+
+## Training Stability
+
+The training pipeline includes:
+
+* Class-weighted loss
+* Label smoothing
+* Gradient clipping
+* AdamW optimizer
+* Learning-rate scheduling
+* Early stopping
+* Best validation checkpoint
+* Frozen pretrained backbones for initial experiments
+
+---
 
 ## Evaluation Metrics
-The evaluation pipeline reports accuracy, precision, recall, F1, confusion matrix, and ROC-AUC (binary mode). It also prints label and prediction counts for sanity checks.
+
+The project evaluates the model using:
+
+* Accuracy
+* Precision
+* Recall
+* F1-score
+* ROC-AUC
+* Confusion Matrix
+* Classification Report
+
+Example:
 
 ```python
-precision = precision_score(labels_all, preds_all, average="weighted", zero_division=0)
-recall = recall_score(labels_all, preds_all, average="weighted", zero_division=0)
-f1 = f1_score(labels_all, preds_all, average="weighted", zero_division=0)
-print(classification_report(labels_all, preds_all, target_names=class_names, zero_division=0))
+precision = precision_score(
+    labels_all,
+    preds_all,
+    average="weighted",
+    zero_division=0
+)
 
-cm = confusion_matrix(labels_all, preds_all)
-ConfusionMatrixDisplay(cm, display_labels=class_names).plot(cmap="Blues")
+recall = recall_score(
+    labels_all,
+    preds_all,
+    average="weighted",
+    zero_division=0
+)
+
+f1 = f1_score(
+    labels_all,
+    preds_all,
+    average="weighted",
+    zero_division=0
+)
+
+cm = confusion_matrix(
+    labels_all,
+    preds_all
+)
 ```
+
+---
+
+## Results
+
+### ViT Baseline
+
+| Metric              |  Result |
+| ------------------- | ------: |
+| Training Accuracy   | ~89.71% |
+| Validation Accuracy | ~87.77% |
+
+The hybrid CNN + ViT + FFT + BiLSTM model is currently an experimental research track under active tuning. Its latest accuracy and F1-score should be taken from the final evaluation results of the training notebook.
+
+---
 
 ## Video Prediction
-The Flask backend serves frame-level inference using the ViT checkpoint in `backend/models/best_vit_model.pth` and streams running real/fake percentages to the frontend.
+
+The production backend performs frame-level inference.
+
+The process is:
+
+```text
+Input Video
+     |
+Open Video using OpenCV
+     |
+Extract Frames
+     |
+Convert BGR -> RGB
+     |
+Resize to 224x224
+     |
+ViT Prediction
+     |
+Count Real/Fake Frames
+     |
+Calculate Prediction Percentage
+     |
+Return Result
+```
+
+Simplified implementation:
 
 ```python
-def predict_video(video_path, model, transform, device):
-    cap = cv2.VideoCapture(video_path)
-    real_count, manipulated_count = 0, 0
-    while cap.isOpened():
-        ret, frame = cap.read()
-        if not ret:
-            break
-        image = transform(Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))).unsqueeze(0).to(device)
-        with torch.no_grad():
-            outputs = model(image)
-            _, predicted = torch.max(outputs, 1)
-        real_count += (predicted.item() == 0)
-        manipulated_count += (predicted.item() == 1)
-    cap.release()
+cap = cv2.VideoCapture(video_path)
+
+real_count = 0
+manipulated_count = 0
+
+while cap.isOpened():
+
+    ret, frame = cap.read()
+
+    if not ret:
+        break
+
+    image = transform(
+        Image.fromarray(
+            cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        )
+    ).unsqueeze(0).to(device)
+
+    with torch.no_grad():
+        outputs = model(image)
+        _, predicted = torch.max(outputs, 1)
+
+    real_count += predicted.item() == 0
+    manipulated_count += predicted.item() == 1
+
+cap.release()
 ```
 
-## Installation and Setup
-### Frontend (React)
+The frontend displays the final real/fake prediction based on the processed frames.
+
+---
+
+## System Architecture
+
+```text
+                    React Frontend
+                          |
+                          v
+                   Video Upload
+                          |
+                          v
+                    Flask Backend
+                          |
+                          v
+                    Video Processing
+                          |
+                          v
+                    ViT Model
+                          |
+                          v
+                    Frame Predictions
+                          |
+                          v
+                  Real / Fake Result
+```
+
+---
+
+## Project Structure
+
+```text
+DeepShield-MF/
+│
+├── backend/
+│   ├── app.py
+│   ├── requirements.txt
+│   └── models/
+│       └── best_vit_model.pth
+│
+├── frontend/
+│   ├── src/
+│   ├── public/
+│   ├── package.json
+│   └── ...
+│
+├── data/
+│   └── FF_frames/
+│       ├── fake/
+│       └── real/
+│
+├── notebooks/
+│   └── frac_df_cnnvit_fft_temporal.ipynb
+│
+├── docs/
+│   └── architecture.png
+│
+├── requirements.txt
+├── README.md
+└── .gitignore
+```
+
+---
+
+## Installation
+
+### Clone the Repository
+
 ```bash
-cd DeepShield
-npm install
-npm start
+git clone https://github.com/Kshubham0315/DeepShield-MF.git
+cd DeepShield-MF
 ```
 
-### Backend (Flask)
+### Backend Setup
+
 ```bash
 cd backend
+```
+
+Create a virtual environment:
+
+```bash
+python -m venv .venv
+```
+
+For Windows:
+
+```bash
+.venv\Scripts\activate
+```
+
+For Linux/macOS:
+
+```bash
+source .venv/bin/activate
+```
+
+Install dependencies:
+
+```bash
 pip install -r requirements.txt
+```
+
+Run the Flask backend:
+
+```bash
 python app.py
 ```
 
-### Model Files
-- Place your trained model file at `backend/models/best_vit_model.pth`.
-- Latest hybrid experiment notebook: `notebooks/frac_df_cnnvit_fft_temporal.ipynb`.
-- Hybrid training checkpoint (default filename): `small_cnn_vit_fft_lstm_model.pth`.
-- Alternatively, set `MODEL_URL` and the backend will download the model on startup.
+---
 
-### CUDA Verification
+## Frontend Setup
+
+Go to the frontend directory:
+
 ```bash
-python -c "import torch; print('CUDA Available:', torch.cuda.is_available())"
+cd frontend
 ```
 
-## Results
-### Baseline ViT (frame-level)
-- Training Accuracy: ~89.71%
-- Validation Accuracy: ~87.77%
+Install dependencies:
 
-### Latest Hybrid (video-level, experimental)
-- Architecture and training flow are updated in the notebook with temporal + FFT fusion.
-- Current runs are under active tuning; use notebook metric cells for the latest measured accuracy/F1.
+```bash
+npm install
+```
 
-## Website Usage
-![Website Landing Page](docs/Img1.png)
-![Upload Interface](docs/Img2.png)
-![Processing Results](docs/Img3.png)
+Start the frontend:
 
-## Contributors
-- **Rohit N** — rohit84.official@gmail.com — [LinkedIn](https://www.linkedin.com/in/rohit-n-1b0984280)
-- **Rahul B** — rahulbalachandar24@gmail.com — [LinkedIn](https://www.linkedin.com/in/rahul-balachandar-a9436a293)
-- **Yadeesh T** — yadeesh005@gmail.com — [LinkedIn](https://www.linkedin.com/in/yadeesh-t-259640288)
-- **Gokul Ram K** — gokul.ram.kannan210905@gmail.com — [LinkedIn](https://www.linkedin.com/in/gokul-ram-k-277a6a308)
+```bash
+npm start
+```
+
+---
+
+## CUDA Verification
+
+To check whether PyTorch can access the GPU:
+
+```bash
+python -c "import torch; print('CUDA Available:', torch.cuda.is_available()); print('CUDA Version:', torch.version.cuda)"
+```
+
+Expected output on a CUDA-enabled system:
+
+```text
+CUDA Available: True
+```
+
+---
+
+## Model Weights
+
+The production model is stored at:
+
+```text
+backend/models/best_vit_model.pth
+```
+
+The trained model is also available through Hugging Face:
+
+https://huggingface.co/RohRoos84/deepshield-model
+
+The backend can optionally download the model during startup using the `MODEL_URL` environment variable.
+
+---
+
+## Environment Variables
+
+Example:
+
+```env
+MODEL_URL=https://huggingface.co/...
+PORT=5000
+```
+
+Do not commit API keys, tokens, passwords or other sensitive credentials to GitHub.
+
+---
+
+## Technologies Used
+
+### Machine Learning
+
+* Python
+* PyTorch
+* TorchVision
+* timm
+* NumPy
+* scikit-learn
+* Pillow
+
+### Computer Vision
+
+* OpenCV
+* ResNet50
+* Vision Transformer
+* FFT
+
+### Deep Learning
+
+* CNN
+* Vision Transformer
+* BiLSTM
+* Feature Fusion
+
+### Backend
+
+* Flask
+* REST API
+
+### Frontend
+
+* React
+* JavaScript
+* CSS
+
+### Deployment
+
+* Netlify
+* Hugging Face Spaces
+* Hugging Face Hub
+* CUDA
+
+---
+
+## Future Improvements
+
+* Train the hybrid model on a larger dataset
+* Fine-tune ResNet50 and ViT jointly
+* Improve FFT feature extraction
+* Experiment with attention-based temporal pooling
+* Add Transformer-based temporal modeling
+* Add Grad-CAM visualization
+* Add ViT attention visualization
+* Add frame-level manipulation heatmaps
+* Improve model calibration
+* Optimize inference speed
+* Add model monitoring
+* Add data drift detection
+* Add CI/CD pipeline
+* Add API authentication
+* Add API rate limiting
+* Add model quantization
+
+---
+
+## Applications
+
+DeepShield-MF can be useful for:
+
+* Deepfake detection
+* Video forensics
+* Digital media verification
+* Computer vision research
+* AI security research
+* Video classification
+* Multimedia analysis
+* Deep learning experimentation
+
+---
+
+## Limitations
+
+Deepfake detection is an evolving problem. Model performance can vary depending on:
+
+* Dataset quality
+* Video resolution
+* Compression
+* Lighting conditions
+* Face quality
+* Deepfake generation technique
+* Unseen manipulation methods
+
+Therefore, the prediction should be treated as an AI-assisted result rather than absolute proof.
+
+---
+
+## License
+
+This project is intended for educational, research and experimental purposes.
+
+## Author
+
+Kshubham0315
+
+DeepShield-MF is a deep learning project focused on detecting manipulated and deepfake video content using spatial, frequency and temporal feature analysis.
