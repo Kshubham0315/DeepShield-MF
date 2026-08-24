@@ -656,37 +656,8 @@ Do not commit API keys, tokens, passwords or other sensitive credentials to GitH
 
 ### Frontend
 
-* React
-* JavaScript
-* CSS
+* Streamlit
 
-### Deployment
-
-* Netlify
-* Hugging Face Spaces
-* Hugging Face Hub
-* CUDA
-
----
-
-## Future Improvements
-
-* Train the hybrid model on a larger dataset
-* Fine-tune ResNet50 and ViT jointly
-* Improve FFT feature extraction
-* Experiment with attention-based temporal pooling
-* Add Transformer-based temporal modeling
-* Add Grad-CAM visualization
-* Add ViT attention visualization
-* Add frame-level manipulation heatmaps
-* Improve model calibration
-* Optimize inference speed
-* Add model monitoring
-* Add data drift detection
-* Add CI/CD pipeline
-* Add API authentication
-* Add API rate limiting
-* Add model quantization
 
 ---
 
