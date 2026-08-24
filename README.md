@@ -9,16 +9,6 @@ The project contains two model approaches:
 * **ViT Baseline:** Frame-level deepfake detection using Vision Transformer.
 * **Hybrid Model:** Video-level detection using ResNet50 + ViT + FFT + BiLSTM with feature fusion.
 
-## Live Demo
-
-**Frontend:**
-https://deepshieldetector.netlify.app
-
-**Backend:**
-https://rohroos84-deepshield.hf.space/health
-
-**Hugging Face Model:**
-https://huggingface.co/RohRoos84/deepshield-model
 
 ---
 
