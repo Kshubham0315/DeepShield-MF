@@ -696,8 +696,4 @@ Therefore, the prediction should be treated as an AI-assisted result rather than
 
 This project is intended for educational, research and experimental purposes.
 
-## Author
-
-Kshubham0315
-
-DeepShield-MF is a deep learning project focused on detecting manipulated and deepfake video content using spatial, frequency and temporal feature analysis.
+Shubham Kumar
